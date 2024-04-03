@@ -1,0 +1,62 @@
+import yfinance as yf
+import pandas as pd
+
+# Initial cash position
+initial_cash = 1000000  # £1 million
+
+# Fetch historical stock data
+def fetch_stock_data(ticker, start_date, end_date):
+    stock_data = yf.download(ticker, start=start_date, end=end_date)
+    return stock_data
+
+# Calculate 7-day returns as mean reversion score
+def calculate_mean_reversion_score(stock_data):
+    stock_data['Mean_Reversion_Score'] = -(stock_data['Close'] - stock_data['Close'].shift(7)) / stock_data['Close'].shift(7)
+    return stock_data
+
+# Generate trading signals
+def generate_signals(stock_data):
+    stock_data['Signal'] = stock_data['Mean_Reversion_Score'].apply(lambda x: "Long" if x < 0 else ("Short" if x > 0 else "Hold"))
+    return stock_data
+
+# Backtesting the strategy
+def backtest_strategy(stock_data, initial_cash):
+    stock_data['Position'] = stock_data['Signal'].shift(1)
+    stock_data['Strategy_Return'] = stock_data['Close'].pct_change()
+    stock_data['Strategy_Return'] = stock_data.apply(
+        lambda row: row['Strategy_Return'] if row['Position'] == 'Long' else (-row['Strategy_Return'] if row['Position'] == 'Short' else 0), axis=1)
+    stock_data['Portfolio_Value'] = ((stock_data['Strategy_Return'] + 1).cumprod() * initial_cash).apply(lambda x: round(x, 2))
+    stock_data['ROI'] = ((stock_data['Portfolio_Value'] / initial_cash - 1) * 100).apply(lambda x: round(x, 2))
+    stock_data['Excess_Return'] = stock_data['Strategy_Return'] - (0.01 / 252)
+    return stock_data
+
+# Define the stock and time period
+ticker = 'TSLA'
+start_date = '2024-01-02'
+end_date = '2024-04-02'
+
+# Execute the strategy
+stock_data = fetch_stock_data(ticker, start_date, end_date)
+stock_data = calculate_mean_reversion_score(stock_data)
+stock_data = generate_signals(stock_data)
+stock_data = backtest_strategy(stock_data, initial_cash)
+
+# Remove rows with NaN values in 'Portfolio_Value' column
+stock_data.dropna(subset=['Portfolio_Value'], inplace=True)
+
+# Calculate Sharpe Ratio
+average_excess_return = stock_data['Excess_Return'].mean()
+sd_of_excess_returns = stock_data['Excess_Return'].std()
+sharpe_ratio = average_excess_return / sd_of_excess_returns * (252 ** 0.5)
+
+# Display the results, Sharpe Ratio, and final values
+print(stock_data[['Close', 'Mean_Reversion_Score', 'Signal', 'Portfolio_Value', 'ROI']])
+
+# Final portfolio value and ROI, formatted with commas
+initial_portfolio_value = f"£{initial_cash:,.2f}"
+final_portfolio_value = f"£{stock_data['Portfolio_Value'].iloc[-1]:,.2f}"
+final_ROI = stock_data['ROI'].iloc[-1]
+print(f"Initial Portfolio Value: {initial_portfolio_value}")
+print(f"Final Portfolio Value: {final_portfolio_value}")
+print(f"ROI: {final_ROI}%")
+print(f"Sharpe Ratio: {sharpe_ratio}")
