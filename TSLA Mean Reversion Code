@@ -1,5 +1,5 @@
-import yfinance as yf
-import pandas as pd
+import yfinance as yf # Import for financial data
+import pandas as pd # Import for data analysis
 
 # Initial cash position
 initial_cash = 1000000  # £1 million
@@ -52,7 +52,7 @@ sharpe_ratio = average_excess_return / sd_of_excess_returns * (252 ** 0.5)
 # Display the results, Sharpe Ratio, and final values
 print(stock_data[['Close', 'Mean_Reversion_Score', 'Signal', 'Portfolio_Value', 'ROI']])
 
-# Final portfolio value and ROI, formatted with commas
+# Final portfolio value and ROI
 initial_portfolio_value = f"£{initial_cash:,.2f}"
 final_portfolio_value = f"£{stock_data['Portfolio_Value'].iloc[-1]:,.2f}"
 final_ROI = stock_data['ROI'].iloc[-1]
